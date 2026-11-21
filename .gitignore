@@ -1,0 +1,14 @@
+.env
+.env.*
+venv/
+__pycache__/
+*.pyc
+.vscode/
+*.pt
+videos/
+*.mp4
+*.bak*
+*.log
+backend/test_auth_access.py
+backend/test_login.py
+backend/test_session.py
