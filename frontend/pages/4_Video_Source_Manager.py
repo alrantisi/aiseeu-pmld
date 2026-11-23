@@ -1,7 +1,12 @@
 import pandas as pd
 import streamlit as st
 
-from utils.api import create_camera, get_cameras, update_camera_source
+from utils.api import (
+    create_camera,
+    delete_camera,
+    get_cameras,
+    update_camera_source,
+)
 from utils.auth import require_login
 
 st.set_page_config(page_title="Video Source Manager - AISeeU", layout="wide")
@@ -22,6 +27,29 @@ def to_wib(value):
         return ts.strftime("%Y-%m-%d %H:%M:%S WIB")
     except (ValueError, TypeError):
         return str(value)
+
+
+@st.dialog("Hapus kamera?")
+def confirm_delete_camera(camera_id):
+    st.write(
+        f"Kamera **{camera_id}** dan konfigurasi ROI-nya akan dihapus. "
+        "Log histori kamera ini tetap tersimpan. "
+        "Tindakan ini tidak dapat dibatalkan."
+    )
+    typed = st.text_input(f"Ketik {camera_id} untuk konfirmasi")
+    a, b = st.columns(2)
+    if a.button("Batal", use_container_width=True):
+        st.rerun()
+    if b.button("Ya, hapus kamera", type="primary", use_container_width=True):
+        if typed.strip() != camera_id:
+            st.error("ID kamera tidak cocok. Penghapusan dibatalkan.")
+        else:
+            ok, message = delete_camera(camera_id)
+            if ok:
+                st.session_state["vsm_flash"] = message
+                st.rerun()
+            else:
+                st.error(message)
 
 
 # Pesan sukses disimpan dulu supaya tetap tampil setelah halaman dimuat ulang
@@ -96,3 +124,13 @@ with right:
         st.metric("Sumber aktif", cam.get("current_source") or "-")
         st.caption(f"Terakhir dicek: {to_wib(cam.get('last_checked_at'))}")
         st.caption(f"Terakhir online (LIVE_CCTV): {to_wib(cam.get('last_online_at'))}")
+
+    with st.container(border=True):
+        st.markdown("**Zona berbahaya**")
+        st.caption("Hapus kamera beserta ROI-nya. Log histori tidak ikut terhapus.")
+        if st.button(
+            "Hapus kamera",
+            key=f"del_cam_{camera_id}",
+            use_container_width=True,
+        ):
+            confirm_delete_camera(camera_id)

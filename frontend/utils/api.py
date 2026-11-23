@@ -243,3 +243,33 @@ def delete_logs(camera_id, ids):
             deleted = 0
         return True, f"{deleted} event log kamera {camera_id} dihapus."
     return False, _error_message(response, "Gagal menghapus log")
+
+
+def reset_counter(camera_id):
+    """Reset hitungan di memori backend. Return (True, pesan) atau (False, pesan)."""
+    try:
+        response = get_session().post(
+            f"{BASE_URL}/api/cameras/{camera_id}/reset",
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException:
+        return False, "Backend tidak bisa dihubungi"
+
+    if response.status_code == 200:
+        return True, "Counter berhasil direset"
+    return False, _error_message(response, "Gagal mereset counter")
+
+
+def delete_camera(camera_id):
+    """Hapus kamera + ROI-nya (log tetap). Return (True, pesan) atau (False, pesan)."""
+    try:
+        response = get_session().delete(
+            f"{BASE_URL}/api/cameras/{camera_id}",
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException:
+        return False, "Backend tidak bisa dihubungi"
+
+    if response.status_code == 200:
+        return True, "Kamera berhasil dihapus"
+    return False, _error_message(response, "Gagal menghapus kamera")

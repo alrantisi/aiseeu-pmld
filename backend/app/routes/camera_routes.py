@@ -1,7 +1,7 @@
 
 import cv2
 
-from flask import Blueprint, request, Response, current_app
+from flask import Blueprint, request, Response, current_app, session
 
 from app.extensions import db
 from app.models import CameraSource, ROIConfiguration
@@ -10,7 +10,10 @@ from app.services.video_service import (
     get_video_capture,
     read_frame_loop
 )
-from ml_engine.vehicle_detector import get_detection_state
+from ml_engine.vehicle_detector import (
+    get_detection_state,
+    reset_detection_state
+)
 
 
 camera_bp = Blueprint(
@@ -410,4 +413,71 @@ def get_detections(camera_id):
     return {
         "status": "success",
         "data": get_detection_state(camera_id)
+    }, 200
+
+
+# =========================================================
+# RESET DETECTION COUNTER
+# =========================================================
+@camera_bp.post("/<camera_id>/reset")
+def reset_camera_counter(camera_id):
+    camera = CameraSource.query.filter_by(
+        camera_id=camera_id
+    ).first()
+
+    if not camera:
+        return {
+            "status": "error",
+            "message": "Camera tidak ditemukan"
+        }, 404
+
+    reset_detection_state(camera_id)
+
+    return {
+        "status": "success",
+        "message": "Counter berhasil direset"
+    }, 200
+
+
+# =========================================================
+# DELETE CAMERA
+# =========================================================
+@camera_bp.delete("/<camera_id>")
+def delete_camera(camera_id):
+    if session.get("role") != "admin":
+        return {
+            "status": "error",
+            "message": "Hanya admin yang boleh menghapus kamera"
+        }, 403
+
+    camera = CameraSource.query.filter_by(
+        camera_id=camera_id
+    ).first()
+
+    if not camera:
+        return {
+            "status": "error",
+            "message": "Camera tidak ditemukan"
+        }, 404
+
+    try:
+        ROIConfiguration.query.filter_by(
+            camera_id=camera_id
+        ).delete()
+        db.session.delete(camera)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+
+        return {
+            "status": "error",
+            "message": "Gagal menghapus kamera",
+            "detail": str(e)
+        }, 500
+
+    reset_detection_state(camera_id)
+
+    return {
+        "status": "success",
+        "message": "Kamera berhasil dihapus"
     }, 200

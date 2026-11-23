@@ -1,6 +1,6 @@
 import streamlit as st
 
-from utils.api import BASE_URL, get_cameras, get_detections
+from utils.api import BASE_URL, get_cameras, get_detections, reset_counter
 from utils.auth import require_login
 
 st.set_page_config(page_title="Dashboard - AISeeU", layout="wide")
@@ -68,6 +68,12 @@ def panel():
 
 
 with right:
+    if st.button("Reset counter", use_container_width=True):
+        ok, msg = reset_counter(cam)
+        if ok:
+            st.toast(msg)
+        else:
+            st.error(msg)
     if auto:
         st.fragment(run_every=2)(panel)()
     else:

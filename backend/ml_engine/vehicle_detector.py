@@ -619,6 +619,24 @@ class VehicleDetector:
             }
 
 
+    def reset_counts(self, camera_id):
+        """Kosongkan hitungan di memori. Zona dan ingatan tracker tidak disentuh."""
+        with self.lock:
+            state = self._get_state(camera_id)
+            state["total"] = 0
+            state["car"] = 0
+            state["motorcycle"] = 0
+            state["bus"] = 0
+            state["truck"] = 0
+            state["seen_ids"].clear()
+            for zone_id in state["zone_counts"]:
+                state["zone_counts"][zone_id] = {"total": 0, "in": 0, "out": 0}
+            for zone_id in state["zone_seen_ids"]:
+                state["zone_seen_ids"][zone_id] = set()
+            state["movement_counts"] = {}
+            state["movements"] = []
+
+
 vehicle_detector = VehicleDetector()
 
 
@@ -640,3 +658,7 @@ def annotate_frame(
 
 def get_detection_state(camera_id):
     return vehicle_detector.get_state(camera_id)
+
+
+def reset_detection_state(camera_id):
+    vehicle_detector.reset_counts(camera_id)
