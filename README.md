@@ -190,4 +190,4 @@ There are also admin-only endpoints for deleting cameras, deleting logs, and res
 
 ## Team
 
-Add the team members' names here.
+To be added.
