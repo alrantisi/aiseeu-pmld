@@ -1,81 +1,81 @@
 # AISeeU: Multi Zone Vehicle Counting
 
-Sistem penghitung kendaraan multi zona berbasis YOLO. Kendaraan dideteksi dan dilacak dari video (file atau CCTV), dihitung masuk/keluar pada zona ROI yang bisa digambar sendiri, lalu dicatat ke database dan ditampilkan di dashboard web.
+A multi-zone vehicle counting system built on YOLO. Vehicles are detected and tracked from video (a file or a CCTV stream), counted as they enter and exit user-defined ROI zones, stored in a database, and shown in a web dashboard.
 
-Proyek PMLD, D4 UGM.
+PMLD project, D4 UGM.
 
-## Fitur
+## Features
 
-- Deteksi dan tracking kendaraan: bus, mobil, motor, truk (YOLOv8n hasil fine-tune)
-- Multi ROI: gambar beberapa zona per kamera langsung di gambar snapshot, hitung masuk (ENTER) dan keluar (EXIT) per zona
-- Dashboard real time: video MJPEG dengan bounding box, hitungan per jenis kendaraan dan per zona, zona ROI bisa ditampilkan di atas video
-- Histori dan pelaporan: filter zona, jenis, aksi, dan tanggal; grafik; tabel; ekspor CSV; hapus log selektif (admin)
-- Video Source Manager: tambah dan hapus kamera, pindah sumber `LIVE_CCTV` (RTSP/HLS) atau `DEFAULT_LOOP` (file video)
-- Login berbasis sesi; semua endpoint `/api/` wajib login (kecuali `/api/auth/*` dan `/feed`); hapus log dan hapus kamera hanya untuk admin
+- Vehicle detection and tracking: bus, car, motorcycle, truck (fine-tuned YOLOv8n)
+- Multi-ROI: draw several zones per camera directly on a snapshot, and count entries (ENTER) and exits (EXIT) per zone
+- Real-time dashboard: MJPEG video with bounding boxes, counts per vehicle type and per zone, and ROI zones that can be overlaid on the live video
+- History and reporting: filter by zone, vehicle type, action, and date; charts; table; CSV export; selective log deletion (admin)
+- Video Source Manager: add and delete cameras, switch the source between `LIVE_CCTV` (RTSP/HLS) and `DEFAULT_LOOP` (video file)
+- Session-based login; every `/api/` endpoint requires login (except `/api/auth/*` and `/feed`); deleting logs and deleting cameras is admin-only
 
-## Arsitektur
+## Architecture
 
 ```
 Browser
   |  :8501
   v
 Streamlit (frontend)
-  |  HTTP + cookie sesi
+  |  HTTP + session cookie
   v
 Flask + gunicorn (backend)  :5000
   |-- routes: auth, camera, roi, log
-  |-- ml_engine: YOLO + tracking + logika zona
-  |-- sumber video: LIVE_CCTV (RTSP/HLS) / DEFAULT_LOOP (mp4)
+  |-- ml_engine: YOLO + tracking + zone logic
+  |-- video source: LIVE_CCTV (RTSP/HLS) / DEFAULT_LOOP (mp4)
   v
 PostgreSQL  :5432
   |-- pmld_management  (users, camera_sources, roi_configurations)
   |-- pmld_data        (vehicle_logs)
 ```
 
-## Teknologi
+## Tech stack
 
-| Lapisan | Teknologi |
+| Layer | Technology |
 |---|---|
 | Backend | Python 3.11, Flask, Flask-SQLAlchemy, gunicorn |
-| Deteksi | Ultralytics YOLO, PyTorch (CPU), OpenCV headless |
+| Detection | Ultralytics YOLO, PyTorch (CPU), OpenCV headless |
 | Frontend | Python 3.12, Streamlit, pandas, streamlit-image-coordinates |
 | Database | PostgreSQL 18 |
-| Deploy | Ubuntu Server, systemd, uv |
+| Deployment | Ubuntu Server, systemd, uv |
 
-## Struktur repositori
+## Repository structure
 
 ```
 backend/
   app/            Flask app (config, extensions, routes/, models/, services/, middleware/)
-  ml_engine/      detektor kendaraan, tracking, logika zona
+  ml_engine/      vehicle detector, tracking, zone logic
   run.py          entry point (gunicorn run:app)
   create_tables.py, create_admin.py
   requirements.txt
 frontend/
-  app.py          halaman utama + login
-  pages/          Dashboard, Setup ROI, Histori & Pelaporan, Video Source Manager
+  app.py          home page + login
+  pages/          Dashboard, Setup ROI, History & Reports, Video Source Manager
   utils/          api.py, auth.py, style.py, zones.py
-  .streamlit/     konfigurasi tema
+  .streamlit/     theme configuration
   requirements.txt
 ```
 
-File yang sengaja **tidak** ada di repo: `.env`, `venv/`, model `*.pt`, dan video `*.mp4` (lihat `.gitignore`).
+Files intentionally **not** in the repository: `.env`, `venv/`, model files (`*.pt`), and videos (`*.mp4`). See `.gitignore`.
 
-## Prasyarat
+## Prerequisites
 
-- Ubuntu Server (diuji di 26.04), PostgreSQL, [uv](https://docs.astral.sh/uv/)
-- File model YOLO (`best.pt`) dan satu video uji, diletakkan manual di server
-- Opsional: Docker + mediamtx dan ffmpeg untuk simulasi RTSP
+- Ubuntu Server (tested on 26.04), PostgreSQL, [uv](https://docs.astral.sh/uv/)
+- A YOLO model file (`best.pt`) and a test video, placed manually on the server
+- Optional: Docker with mediamtx and ffmpeg to simulate an RTSP stream
 
-## Instalasi
+## Installation
 
 ### 1. Database
 
-Buat user dan dua database (`pmld_management`, `pmld_data`) di PostgreSQL, dengan password yang kuat:
+Create a user and two databases (`pmld_management`, `pmld_data`) in PostgreSQL, using a strong password:
 
 ```bash
 sudo -u postgres psql
-CREATE USER pmld_user WITH PASSWORD '<password-kuat>';
+CREATE USER pmld_user WITH PASSWORD '<strong-password>';
 CREATE DATABASE pmld_management OWNER pmld_user;
 CREATE DATABASE pmld_data OWNER pmld_user;
 ```
@@ -89,36 +89,36 @@ uv pip install --python venv/bin/python torch torchvision --index-url https://do
 uv pip install --python venv/bin/python -r requirements.txt
 ```
 
-Buat file `backend/.env` (jangan di-commit) dengan variabel berikut:
+Create `backend/.env` (never commit it) with these variables:
 
-| Variabel | Fungsi |
+| Variable | Purpose |
 |---|---|
-| `MANAGEMENT_DATABASE_URL` | Koneksi ke `pmld_management` |
-| `DATA_DATABASE_URL` | Koneksi ke `pmld_data` |
-| `SECRET_KEY` | Kunci penanda tangan sesi login (acak, 64 hex) |
-| `YOLO_MODEL_PATH` | Lokasi file model `.pt` |
-| `YOLO_CONFIDENCE` | Ambang confidence (contoh: `0.25`) |
+| `MANAGEMENT_DATABASE_URL` | Connection string for `pmld_management` |
+| `DATA_DATABASE_URL` | Connection string for `pmld_data` |
+| `SECRET_KEY` | Key used to sign login sessions (random, 64 hex characters) |
+| `YOLO_MODEL_PATH` | Location of the `.pt` model file |
+| `YOLO_CONFIDENCE` | Confidence threshold (for example `0.25`) |
 
-Membuat `SECRET_KEY`:
+Generate a `SECRET_KEY`:
 
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Buat tabel dan akun admin, **lalu langsung ganti password admin**:
+Create the tables and the admin account, **then change the admin password right away**:
 
 ```bash
 venv/bin/python create_tables.py
 venv/bin/python create_admin.py
 ```
 
-Jalankan:
+Run:
 
 ```bash
 TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1 venv/bin/gunicorn -w 1 --threads 8 --timeout 0 -b 0.0.0.0:5000 run:app
 ```
 
-Catatan: pakai `-w 1` karena state tracking disimpan di memori proses. Jangan menjalankan dengan `debug=True`.
+Note: use `-w 1` because tracking state is kept in process memory. Do not run with `debug=True`.
 
 ### 3. Frontend
 
@@ -129,65 +129,65 @@ uv pip install --python venv/bin/python -r requirements.txt
 venv/bin/streamlit run app.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
 ```
 
-Alamat backend diatur di `frontend/utils/api.py` (`BASE_URL`). Dashboard dibuka di `http://<alamat-server>:8501`.
+The backend address is set in `frontend/utils/api.py` (`BASE_URL`). Open the dashboard at `http://<server-address>:8501`.
 
-### 4. Jalan otomatis (systemd)
+### 4. Start on boot (systemd)
 
-Daftarkan dua service: `pmld` (backend, di atas `postgresql`) dan `pmld-frontend` (setelah `pmld`), masing-masing dengan `Restart=always`, lalu aktifkan:
+Register two services: `pmld` (backend, started after `postgresql`) and `pmld-frontend` (started after `pmld`), both with `Restart=always`, then enable them:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now pmld pmld-frontend
 ```
 
-Service backend perlu variabel lingkungan `PYTHONUNBUFFERED=1` dan `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1`.
+The backend service needs the environment variables `PYTHONUNBUFFERED=1` and `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1`.
 
-## Port
+## Ports
 
-| Port | Layanan |
+| Port | Service |
 |---|---|
 | 5000 | Backend API |
-| 8501 | Frontend Streamlit |
-| 5432 | PostgreSQL (sebaiknya hanya localhost) |
+| 8501 | Streamlit frontend |
+| 5432 | PostgreSQL (ideally localhost only) |
 
-## API ringkas
+## API overview
 
-| Method | Endpoint | Fungsi |
+| Method | Endpoint | Purpose |
 |---|---|---|
-| POST | `/api/auth/login` | Login |
-| GET | `/api/auth/check` | Cek sesi |
-| GET, POST | `/api/cameras` | Daftar dan tambah kamera |
-| PUT | `/api/cameras/<id>/source` | Ubah sumber video |
-| GET | `/api/cameras/<id>/snapshot` | Satu frame JPEG |
-| GET | `/api/cameras/<id>/feed` | Stream MJPEG dengan deteksi |
-| GET | `/api/cameras/<id>/detections` | Hitungan deteksi saat ini |
-| GET, POST | `/api/cameras/<id>/roi` | Ambil dan simpan zona ROI |
-| GET | `/api/logs`, `/api/logs/summary` | Log kendaraan dan rekap |
+| POST | `/api/auth/login` | Log in |
+| GET | `/api/auth/check` | Check session |
+| GET, POST | `/api/cameras` | List and add cameras |
+| PUT | `/api/cameras/<id>/source` | Change video source |
+| GET | `/api/cameras/<id>/snapshot` | Single JPEG frame |
+| GET | `/api/cameras/<id>/feed` | MJPEG stream with detections |
+| GET | `/api/cameras/<id>/detections` | Current detection counts |
+| GET, POST | `/api/cameras/<id>/roi` | Read and save ROI zones |
+| GET | `/api/logs`, `/api/logs/summary` | Vehicle logs and summary |
 
-Ada juga endpoint khusus admin untuk hapus kamera, hapus log, dan reset counter.
+There are also admin-only endpoints for deleting cameras, deleting logs, and resetting the counter.
 
-## Catatan penggunaan
+## Usage notes
 
-- Satu kamera hanya satu stream `/feed` pada satu waktu. Setelah mengubah ROI atau sumber video, buka ulang Dashboard.
-- Zona ROI tidak boleh tumpang tindih (zona pertama yang menang).
-- Request `/feed` pertama setelah restart lambat karena YOLO berjalan di CPU.
-- Waktu di backend UTC; frontend menampilkan WIB.
+- A camera can have only one `/feed` stream at a time. After changing the ROI or the video source, reopen the Dashboard.
+- ROI zones must not overlap (the first matching zone wins).
+- The first `/feed` request after a restart is slow because YOLO runs on the CPU.
+- The backend uses UTC; the frontend displays WIB.
 
-## Keterbatasan yang diketahui
+## Known limitations
 
-- Hanya HTTP, belum ada HTTPS
-- `/feed` dapat diakses tanpa login (karena dimuat lewat tag `<img>`)
-- Satu worker gunicorn dan inferensi di CPU, sehingga kapasitas terbatas
-- Belum ada backup database terjadwal dan belum ada reconnect otomatis untuk `LIVE_CCTV`
-- Memori naik pelan pada stream yang berjalan lama (`seen_ids` tidak dibersihkan)
-- Akurasi motor dan klasifikasi mobil/truk masih kurang (akar masalah: data latih)
-- Halaman Histori hanya memuat 5.000 log terbaru
+- HTTP only, no HTTPS yet
+- `/feed` can be accessed without login (it is loaded through an `<img>` tag)
+- A single gunicorn worker and CPU-only inference, so capacity is limited
+- No scheduled database backups and no automatic reconnect for `LIVE_CCTV` yet
+- Memory grows slowly on long-running streams (`seen_ids` is never cleaned up)
+- Accuracy is weaker for motorcycles and for car/truck classification (root cause: training data)
+- The History page loads only the latest 5,000 logs
 
-## Keamanan
+## Security
 
-- Jangan commit `.env`, password, atau token. Gunakan password yang kuat dan unik untuk database dan akun admin, serta ganti password bawaan setelah instalasi.
-- Batasi PostgreSQL ke `localhost` dan gunakan firewall untuk port yang tidak perlu dibuka.
+- Never commit `.env`, passwords, or tokens. Use strong, unique passwords for the database and the admin account, and change the default password after installation.
+- Restrict PostgreSQL to `localhost` and use a firewall to close ports you do not need.
 
-## Tim
+## Team
 
-Menyusul.
+Add the team members' names here.
