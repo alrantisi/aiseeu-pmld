@@ -190,4 +190,4 @@ Ada juga endpoint khusus admin untuk hapus kamera, hapus log, dan reset counter.
 
 ## Tim
 
-Tulis nama anggota tim di sini.
+Menyusul.
