@@ -1,18 +1,31 @@
 import io
 
 import streamlit as st
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 from utils.api import get_cameras, get_roi, get_snapshot, save_roi
 from utils.auth import require_login
+from utils.style import hero, inject_style
 
 st.set_page_config(page_title="Setup ROI - AISeeU", layout="wide")
 require_login()
-st.title("Setup Multi ROI")
+inject_style()
+hero("Setup Multi ROI", "")
 
-DISPLAY_W = 900
+# Gambar dirender 1400 px lalu ditampilkan selebar kolom (klik tetap akurat
+# karena koordinat dinormalisasi memakai ukuran tampilan dari komponen).
+DISPLAY_W = 1400
+LINE_W = 4
+DOT_R = 7
 COLORS = ["#06b6d4", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"]
+
+try:
+    FONT = ImageFont.load_default(size=22)
+    FONT_SM = ImageFont.load_default(size=18)
+except Exception:  # Pillow tanpa dukungan ukuran font
+    FONT = FONT_SM = ImageFont.load_default()
+
 ss = st.session_state
 
 if "flash" in ss:
@@ -53,21 +66,16 @@ def to_px(point):
     return (point[0] * W, point[1] * H)
 
 
+def hex_to_rgba(color, alpha):
+    c = color.lstrip("#")
+    return (int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16), alpha)
+
+
+from utils.zones import draw_zones
+
+
 def render(saved_zones, draft_points):
-    img = base.copy()
-    draw = ImageDraw.Draw(img)
-    for i, z in enumerate(saved_zones):
-        color = COLORS[i % len(COLORS)]
-        px = [to_px(p) for p in z["points"]]
-        draw.line(px + [px[0]], fill=color, width=3)
-        draw.text((px[0][0] + 4, px[0][1] + 4), z["zone_name"], fill=color)
-    if draft_points:
-        px = [to_px(p) for p in draft_points]
-        if len(px) > 1:
-            draw.line(px, fill="#ffffff", width=3)
-        for x, y in px:
-            draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill="#e8a317", outline="#ffffff")
-    return img
+    return draw_zones(base, saved_zones, draft_points)
 
 
 @st.dialog("Hapus zone?")
@@ -89,7 +97,7 @@ def confirm_delete(zone, all_zones, camera_id):
             st.error(msg)
 
 
-left, right = st.columns([2, 1])
+left, right = st.columns([3, 1])
 
 with left:
     st.caption(
@@ -99,6 +107,9 @@ with left:
     click = streamlit_image_coordinates(
         render(zones, ss[pts_key]),
         key=f"img_{cam}_{ss[ver_key]}",
+        use_column_width="always",
+        image_format="JPEG",
+        jpeg_quality=85,
     )
     if click:
         click_id = (click["x"], click["y"], click.get("unix_time"))

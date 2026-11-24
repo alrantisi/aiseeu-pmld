@@ -1,13 +1,16 @@
 import time
 
+import pandas as pd
 import streamlit as st
 
 from utils.api import get_cameras, get_roi, login
 from utils.auth import do_logout, remember_login, restore_login, wait_for_browser_cookies
 from utils.mock_data import init_state
+from utils.style import hero, inject_style
 
 st.set_page_config(page_title="AISeeU", page_icon="🚗", layout="wide")
 init_state()
+inject_style()
 restore_login()
 wait_for_browser_cookies()
 
@@ -40,14 +43,14 @@ with st.sidebar:
         do_logout()
         st.rerun()
 
-st.title("AISeeU: Multi Zone Vehicle Counting Dashboard")
-st.caption("Sesuai SRS Kelompok 15 - data dari backend")
+hero("AISeeU", "Multi Zone Vehicle Counting Dashboard")
 
 cameras = get_cameras()
 if not cameras:
     st.warning("Belum ada kamera terdaftar, atau backend tidak bisa dihubungi.")
 
-n_zone = sum(len(get_roi(c["camera_id"])) for c in cameras)
+rois = {c["camera_id"]: get_roi(c["camera_id"]) for c in cameras}
+n_zone = sum(len(v) for v in rois.values())
 sources = {c.get("current_source") for c in cameras if c.get("current_source")}
 if not sources:
     source_label = "-"
@@ -58,12 +61,24 @@ else:
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Kamera terdaftar", len(cameras))
-c2.metric("Total zone aktif", n_zone)
+c2.metric("Total zona aktif", n_zone)
 c3.metric("Sumber video", source_label)
 
-st.subheader("Menu")
-st.page_link("pages/1_Dashboard.py", label="Dashboard Real Time", icon=":material/monitoring:")
-st.page_link("pages/2_Setup_ROI.py", label="Setup Multi ROI", icon=":material/draw:")
-st.page_link("pages/3_Histori_Laporan.py", label="Histori & Pelaporan", icon=":material/history:")
-st.page_link("pages/4_Video_Source_Manager.py", label="Video Source Manager & Pengaturan",
-             icon=":material/settings:")
+st.subheader("Status kamera")
+if cameras:
+    st.dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "Kamera": c["camera_id"],
+                    "Sumber": c.get("current_source") or "-",
+                    "Zona": len(rois[c["camera_id"]]),
+                }
+                for c in cameras
+            ]
+        ),
+        hide_index=True,
+        use_container_width=True,
+    )
+
+st.page_link("pages/1_Dashboard.py", label="Buka Dashboard Real Time", icon=":material/monitoring:")

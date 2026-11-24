@@ -3,11 +3,13 @@ import streamlit as st
 
 from utils.api import delete_logs, get_cameras, get_logs, get_logs_summary
 from utils.auth import require_login
+from utils.style import hero, inject_style
 
 st.set_page_config(page_title="Histori - AISeeU", layout="wide")
 require_login()
+inject_style()
 
-st.title("Histori & Pelaporan")
+hero("Histori & Pelaporan", "Riwayat kejadian dan rekap kendaraan per kamera")
 st.caption("Data dari backend. Waktu ditampilkan dalam WIB.")
 
 cameras = get_cameras()

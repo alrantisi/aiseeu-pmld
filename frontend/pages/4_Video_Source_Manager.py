@@ -5,14 +5,17 @@ from utils.api import (
     create_camera,
     delete_camera,
     get_cameras,
+    get_roi,
     update_camera_source,
 )
 from utils.auth import require_login
+from utils.style import hero, inject_style
 
 st.set_page_config(page_title="Video Source Manager - AISeeU", layout="wide")
 require_login()
+inject_style()
 
-st.title("Video Source Manager & Pengaturan")
+hero("Video Source Manager & Pengaturan", "Kelola sumber video semua kamera")
 st.caption("Data dari backend. Perubahan sumber video berlaku saat stream dibuka ulang (buka ulang Dashboard).")
 
 MODES = ["LIVE_CCTV", "DEFAULT_LOOP"]
@@ -57,6 +60,47 @@ flash = st.session_state.pop("vsm_flash", None)
 if flash:
     st.success(flash)
 
+cameras = get_cameras()
+
+# --- Kartu status + tabel ringkas semua kamera -------------------------------
+if cameras:
+    zone_count = {}
+    for c in cameras:
+        zone_count[c["camera_id"]] = len(get_roi(c["camera_id"]) or [])
+
+    n_live = sum(1 for c in cameras if c.get("current_source") == "LIVE_CCTV")
+    n_loop = sum(1 for c in cameras if c.get("current_source") == "DEFAULT_LOOP")
+
+    s1, s2, s3, s4 = st.columns(4)
+    for col, label, value in (
+        (s1, "Kamera terdaftar", len(cameras)),
+        (s2, "Sumber LIVE_CCTV", n_live),
+        (s3, "Sumber DEFAULT_LOOP", n_loop),
+        (s4, "Total zona ROI", sum(zone_count.values())),
+    ):
+        with col:
+            with st.container(border=True):
+                st.metric(label, value)
+
+    st.subheader("Ringkasan semua kamera")
+    st.dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "Kamera": c["camera_id"],
+                    "Sumber aktif": c.get("current_source") or "-",
+                    "Zona": zone_count.get(c["camera_id"], 0),
+                    "Terakhir dicek": to_wib(c.get("last_checked_at")),
+                    "Terakhir online (LIVE)": to_wib(c.get("last_online_at")),
+                }
+                for c in cameras
+            ]
+        ),
+        hide_index=True,
+        use_container_width=True,
+    )
+
+# --- Tambah kamera (selalu tersedia, termasuk saat belum ada kamera) ---------
 with st.expander("Tambah kamera baru"):
     with st.form("add_camera", clear_on_submit=True):
         new_id = st.text_input("ID kamera (contoh: CAM02)")
@@ -79,10 +123,12 @@ with st.expander("Tambah kamera baru"):
             else:
                 st.error(message)
 
-cameras = get_cameras()
 if not cameras:
     st.error("Daftar kamera tidak bisa diambil dari backend (atau belum ada kamera terdaftar).")
     st.stop()
+
+# --- Pengaturan satu kamera ---------------------------------------------------
+st.subheader("Pengaturan kamera")
 
 by_id = {c["camera_id"]: c for c in cameras}
 camera_id = st.selectbox("Kamera", list(by_id))
@@ -122,6 +168,7 @@ with right:
     with st.container(border=True):
         st.markdown("**Status sumber video**")
         st.metric("Sumber aktif", cam.get("current_source") or "-")
+        st.caption(f"Zona ROI terpasang: {zone_count.get(camera_id, 0)}")
         st.caption(f"Terakhir dicek: {to_wib(cam.get('last_checked_at'))}")
         st.caption(f"Terakhir online (LIVE_CCTV): {to_wib(cam.get('last_online_at'))}")
 

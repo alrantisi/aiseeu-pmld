@@ -10,18 +10,26 @@ COOKIE_NAME = "pmld_session"
 COOKIE_MAX_AGE = 24 * 60 * 60  # login diingat 1 hari
 
 
+def _controller():
+    """CookieController yang aman dipakai. Kalau browser tidak punya cookie sama
+    sekali, komponennya mengirim None dan library crash (TypeError); ubah jadi {}."""
+    if st.session_state.get("cookies", {}) is None:
+        st.session_state["cookies"] = {}
+    return CookieController()
+
+
 def remember_login():
     """Simpan tiket login dari backend ke cookie browser (setelah login sukses)."""
     token = get_session_token()
     if token:
-        CookieController().set(COOKIE_NAME, token, max_age=COOKIE_MAX_AGE)
+        _controller().set(COOKIE_NAME, token, max_age=COOKIE_MAX_AGE)
 
 
 def forget_login():
     """Hapus cookie login dari browser."""
     try:
-        CookieController().remove(COOKIE_NAME)
-    except KeyError:
+        _controller().remove(COOKIE_NAME)
+    except (KeyError, TypeError):
         pass
 
 
@@ -31,7 +39,7 @@ def restore_login():
     ss = st.session_state
     if ss.auth:
         return
-    token = CookieController().get(COOKIE_NAME)
+    token = _controller().get(COOKIE_NAME)
     if not token or ss.get("_restore_token") == token:
         return
     ss["_restore_token"] = token
