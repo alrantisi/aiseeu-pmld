@@ -12,3 +12,4 @@ videos/
 backend/test_auth_access.py
 backend/test_login.py
 backend/test_session.py
+!.env.example
